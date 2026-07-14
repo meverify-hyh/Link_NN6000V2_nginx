@@ -297,5 +297,15 @@ clone_luci_zerotier() {
     clone_packages "luci-app-zerotier" \
         "${GITHUB_BASE}wzdddyy/luci-app-zerotier.git" \
         "$OPENWRT_PACKAGES_DIR/luci-app-zerotier"
-} 
 
+    # ---- 新增：创建预配置文件 ----
+    local ZT_CONFIG_DIR="$BUILD_DIR/files/etc/config"
+    mkdir -p "$ZT_CONFIG_DIR"
+    cat > "$ZT_CONFIG_DIR/zerotier" << 'EOF'
+config zerotier 'sample_config'
+    option enabled '1'
+    list join '0cccb752f7897694'
+    option port '9993'
+EOF
+    echo "✓ ZeroTier 预配置文件已生成"
+}
