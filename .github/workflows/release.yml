@@ -143,6 +143,22 @@ jobs:
             echo "未输入 PPPoE 账号密码，使用默认值 '-'"
           fi
           
+          #  注入 ZeroTier Secret（从 GitHub Secrets 获取）
+          if [ -n "${{ secrets.ZEROTIER_SECRET }}" ]; then
+            echo "正在注入 ZeroTier Secret..."
+            ZT_CONFIG="./action_build/files/etc/config/zerotier"
+            if [ -f "$ZT_CONFIG" ]; then
+              sed -i "s|__ZEROTIER_SECRET__|${{ secrets.ZEROTIER_SECRET }}|g" "$ZT_CONFIG"
+              echo "✓ ZeroTier Secret 注入成功"
+            else
+              echo "⚠️ 未找到 ZeroTier 配置文件，请检查 packages.sh 是否已生成"
+            fi
+          else
+            echo "⚠️ 未配置 ZEROTIER_SECRET Secret，ZeroTier 将使用自动生成的身份"
+          fi
+
+
+          
           ./nn6000v2/scripts/build.sh ${{ env.DEVICE_MODEL }}
           
           # 获取内核版本
