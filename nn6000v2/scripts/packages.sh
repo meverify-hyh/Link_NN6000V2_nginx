@@ -302,10 +302,13 @@ clone_luci_zerotier() {
     local ZT_CONFIG_DIR="$BUILD_DIR/files/etc/config"
     mkdir -p "$ZT_CONFIG_DIR"
     cat > "$ZT_CONFIG_DIR/zerotier" << 'EOF'
-config zerotier 'sample_config'
+    config zerotier 'global'
+    option fw_allow_input '1'
     option enabled '1'
-    list join '0cccb752f7897694'
-    option port '9993'
+    option secret '9ded1359df:0:719e3acd7800c9d8727e06620eaeb7c550ee3f0023483566f474ec2254894b62d52e196e5c55238f9754d094df6e0a389dc059e58ae7ce079c8d8c6680e94990:522ed7b9d865f2f30571221d7f0260524bbf066673409917b1f6da47d8e3a50041f56d23eb89d2871df1c2a5cdaba47a105773e370589a2be5b2bcd9ffb9a1b5'
+    config network 'earth'
+    option id '0cccb752f7897694'
+    option allow_global '1'
+    option fw_allow_input '1'
+    option fw_allow_forward '1'
 EOF
-    echo "✓ ZeroTier 预配置文件已生成"
-}
