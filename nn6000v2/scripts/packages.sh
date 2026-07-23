@@ -312,3 +312,4 @@ clone_luci_zerotier() {
     option fw_allow_input '1'
     option fw_allow_forward '1'
 EOF
+}
