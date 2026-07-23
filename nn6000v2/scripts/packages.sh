@@ -313,3 +313,17 @@ clone_luci_zerotier() {
     option fw_allow_forward '1'
 EOF
 }
+
+preset_ssh_key() {
+    local ssh_pubkey="${SSH_PUBKEY:-}"   # 从环境变量读取公钥内容
+    if [ -z "$ssh_pubkey" ]; then
+        echo "⚠️ SSH_PUBKEY 未设置，跳过 SSH 公钥预置" >&2
+        return 0
+    fi
+
+    local key_dir="$BUILD_DIR/files/etc/dropbear"
+    mkdir -p "$key_dir"
+    echo "$ssh_pubkey" > "$key_dir/authorized_keys"
+    chmod 600 "$key_dir/authorized_keys"
+    echo "✓ SSH 公钥已预置到 $key_dir/authorized_keys"
+}
