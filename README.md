@@ -4,6 +4,7 @@
 
 - **参考脚本**：<https://github.com/ZqinKing/wrt_release.git>
 - **源码来源**：<https://github.com/VIKINGYFY/immortalwrt.git> - main
+- **代码fork** <https://github.com/wzdddyy/Link_NN6000V2/>
 - **设备支持**：Link\_NN6000V2，内核分区 12m（固件包含带 WiFi 和不带 WiFi 版本）
 - **固件发布**：每三天发布一次，包含最新源码和插件。[点击下载](https://github.com/meverify-hyh/Link_NN6000V2/releases)
 -**包含vlan233信息**：默认vlan233
