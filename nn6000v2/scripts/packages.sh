@@ -314,6 +314,23 @@ clone_luci_zerotier() {
 EOF
 }
 
+clone_singbox() {
+    local SINGBOX_DIR="$BUILD_DIR/feeds/packages/net/sing-box"
+    local makefile_path="$SINGBOX_DIR/Makefile"
+
+    if [ ! -f "$makefile_path" ]; then
+        echo "Warning: sing-box Makefile not found. Skipping." >&2
+        return 0
+    fi
+
+    # 锁定版本和哈希
+    sed -i "s/^PKG_VERSION:=.*/PKG_VERSION:=1.12.19/" "$makefile_path"
+    sed -i "s/^PKG_HASH:=.*/PKG_HASH:=e122253d6712c13997b3aba9692dca5fde3e4d0d2aa606fd20913b772fcd147c/" "$makefile_path"
+
+    echo "✓ sing-box 已锁定到 1.12.19"
+}
+
+
 preset_ssh_key() {
     local ssh_pubkey="${SSH_PUBKEY:-}"   # 从环境变量读取公钥内容
     if [ -z "$ssh_pubkey" ]; then
