@@ -50,7 +50,6 @@ main() {
     clone_oaf
     clone_luci_zerotier
     clone_passwall
-    clone_singbox
     install_feeds
     update_docker_stack
     remove_tweaked_packages
@@ -81,6 +80,7 @@ main() {
     install_pbr_isp
     fix_pbr_ip_forward
     fix_quickstart
+    clone_singbox
 }
 
 main "$@"
