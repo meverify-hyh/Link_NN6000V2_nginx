@@ -293,7 +293,7 @@ remove_attendedsysupgrade() {
     done
 }
 
-clone_luci_zerotier() {
+# clone_luci_zerotier() {
     clone_packages "luci-app-zerotier" \
         "${GITHUB_BASE}wzdddyy/luci-app-zerotier.git" \
         "$OPENWRT_PACKAGES_DIR/luci-app-zerotier"
@@ -314,7 +314,7 @@ clone_luci_zerotier() {
 EOF
 }
 
-clone_singbox() {
+# clone_singbox() {
     local SINGBOX_DIR="$BUILD_DIR/feeds/packages/net/sing-box"
     local makefile_path="$SINGBOX_DIR/Makefile"
 
