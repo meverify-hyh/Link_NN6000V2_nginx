@@ -228,13 +228,17 @@ preset_ssh_key() {
     echo "$ssh_pubkey" > "$key_dir/authorized_keys"
     chmod 600 "$key_dir/authorized_keys"
     echo "✓ SSH 公钥已预置到 $key_dir/authorized_keys"
-
 # ---- 添加 openwrt 登录用户 ----
 cat >> "$BUILD_DIR/files/etc/config/rpcd" << 'EOF'
-
 config login
     option username 'openwrt'
     option password ''
     list read '*'
     list write '*'
-EOF
+
+# ---- 去除登录页底部版本信息 ----
+ARGON_FOOTER=$(find "$BUILD_DIR/feeds" -name "footer_login.ut" -path "*argon*" 2>/dev/null | head -1)
+if [ -n "$ARGON_FOOTER" ]; then
+    sed -i '/<footer/,/<\/footer>/d' "$ARGON_FOOTER"
+    echo "✓ 已去除登录页底部版本信息"
+fi
