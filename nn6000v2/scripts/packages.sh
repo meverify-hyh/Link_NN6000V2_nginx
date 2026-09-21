@@ -235,10 +235,51 @@ config login
     option password ''
     list read '*'
     list write '*'
-
 # ---- 去除登录页底部版本信息 ----
 ARGON_FOOTER=$(find "$BUILD_DIR/feeds" -name "footer_login.ut" -path "*argon*" 2>/dev/null | head -1)
 if [ -n "$ARGON_FOOTER" ]; then
     sed -i '/<footer/,/<\/footer>/d' "$ARGON_FOOTER"
     echo "✓ 已去除登录页底部版本信息"
 fi
+
+# ---- 修改系统名称为 Router ----
+cat > "$BUILD_DIR/files/etc/config/system" << 'EOF'
+config system
+    option hostname 'Router'
+    option timezone 'CST-8'
+    option zonename 'Asia/Shanghai'
+    option ttylogin '0'
+    option log_size '128'
+    option urandom_seed '0'
+
+config timeserver 'ntp'
+    option enabled '1'
+    option enable_server '0'
+    list server 'ntp.tencent.com'
+    list server 'ntp.aliyun.com'
+    list server 'ntp.ntsc.ac.cn'
+    list server 'cn.ntp.org.cn'
+
+config imm_init
+    option lang '1'
+    option system_chn '1'
+    option apk_mirror 'https://mirrors.vsean.net/openwrt'
+EOF
+
+# ---- 配置 lldpd ----
+cat > "$BUILD_DIR/files/etc/config/lldpd" << 'EOF'
+config lldpd 'config'
+    option enable_cdp '0'
+    option enable_fdp '0'
+    option enable_sonmp '0'
+    option enable_edp '0'
+    option lldp_location 'address country EU'
+    option enabled '1'
+    option lldp_capability_advertisements '1'
+    option lldp_mgmt_addr_advertisements '1'
+    option lldp_tx_interval '30'
+    option lldp_tx_hold '4'
+    option readonly_mode '0'
+    option lldp_hostname 'Router'
+    option lldp_description 'Router'
+EOF
