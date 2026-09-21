@@ -2,39 +2,30 @@
 set -e
 set -o errexit
 set -o errtrace
-
 error_handler() {
     echo "Error occurred in script at line: ${BASH_LINENO[0]}, command: '${BASH_COMMAND}'"
 }
-
 trap 'error_handler' ERR
-
 REPO_URL=$1
 REPO_BRANCH=$2
 BUILD_DIR=$3
 COMMIT_HASH=$4
-
 # Convert BUILD_DIR to absolute path
 if [[ "$BUILD_DIR" != /* ]]; then
     BUILD_DIR="$(pwd)/$BUILD_DIR"
 fi
-
 FEEDS_CONF="feeds.conf.default"
 GOLANG_REPO="https://github.com/sbwml/packages_lang_golang"
 GOLANG_BRANCH="26.x"
 THEME_SET="argon"
-LAN_ADDR="10.0.0.1"
-
+LAN_ADDR="192.168.2.254"
 SCRIPT_DIR=$(cd $(dirname $0) && pwd)
 BASE_PATH=${BASE_PATH:-$(dirname "$SCRIPT_DIR")}
-
 source "$SCRIPT_DIR/general.sh"
 source "$SCRIPT_DIR/feeds.sh"
 source "$SCRIPT_DIR/packages.sh"
 source "$SCRIPT_DIR/system.sh"
 source "$SCRIPT_DIR/docker.sh"
-
-
 main() {
     clone_repo
     clean_up
@@ -82,5 +73,4 @@ main() {
     fix_quickstart
     clone_singbox
 }
-
 main "$@"
