@@ -12,9 +12,9 @@ on:
         required: false
         default: '-'
   schedule:
-    # 每 3 天编译一次（UTC 时间，北京时间 = UTC+8）
+    # 每 7 天编译一次（UTC 时间，北京时间 = UTC+8）
     # UTC 20:00 = 北京时间 04:00
-    - cron: '0 20 */3 * *'
+    - cron: '0 20 */7 * *'
 
 env:
   DEVICE_MODEL: link_nn6000v2_immwrt
@@ -227,11 +227,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "清理旧 Releases (保留最新2个)..."
-          gh release list --json tagName --jq 'sort_by(.tagName) | reverse | .[2:] | .[].tagName' | while read -r tag; do
+          echo "清理旧 Releases (保留最新10个..."
+          gh release list --json tagName --jq 'sort_by(.tagName) | reverse | .[10:]] | .[].tagName' | while read -r tag; do
             [ -n "$tag" ] && gh release delete "$tag" --cleanup-tag --yes 2>/dev/null || true
           done
-          echo "清理旧工作流运行记录 (保留最新2个)..."
-          gh run list --workflow release.yml --json databaseId,createdAt --jq 'sort_by(.createdAt) | reverse | .[2:] | .[].databaseId' | while read -r run_id; do
+          echo "清理旧工作流运行记录 (保留最新10个..."
+          gh run list --workflow release.yml --json databaseId,createdAt --jq 'sort_by(.createdAt) | reverse | .[10:]] | .[].databaseId' | while read -r run_id; do
             [ -n "$run_id" ] && gh run delete "$run_id" 2>/dev/null || true
           done
