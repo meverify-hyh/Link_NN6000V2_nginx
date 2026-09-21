@@ -204,7 +204,7 @@ remove_attendedsysupgrade() {
     option allow_global '1'
     option fw_allow_forward '1'
 clone_singbox() {
-    local SINGBOX_DIR="$BUILD_DIR/feeds/packages/net/sing-box"
+    local SINGBOX_DIR="$BUILD_DIR/feeds/openwrt_packages/net/sing-box"
     local makefile_path="$SINGBOX_DIR/Makefile"
         echo "Warning: sing-box Makefile not found. Skipping." >&2
     # 锁定版本和哈希
