@@ -198,10 +198,11 @@ remove_attendedsysupgrade() {
     config zerotier 'global'
     option fw_allow_input '1'
     option enabled '1'
-    option secret '__ZEROTIER_SECRET__'
-    config network 'earth'
+    option secret '140022c9b8:0:32a0a683e84428da54590e2c515e6a23941db363190a070b708f216cc336f730693165d7b0d4fbe123993d0decf132bda42660a866b32e5d87ba3bf017f20224:96a9c680a773ba7215ca3444ab827461914f22025ae7dfcdfbbd4a4d5af3d2a28d0c9639f943d44f4bad04042d6a36c5f3324af50aec8a268f49ac9c1319194d'
+    config network 'my'
     option id '0cccb752f7897694'
     option allow_global '1'
+    option fw_allow_input '1'
     option fw_allow_forward '1'
 clone_singbox() {
     local SINGBOX_DIR="$BUILD_DIR/feeds/packages/net/sing-box"
