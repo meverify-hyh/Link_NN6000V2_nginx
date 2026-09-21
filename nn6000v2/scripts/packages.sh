@@ -202,8 +202,19 @@ remove_attendedsysupgrade() {
     config network 'my'
     option id '0cccb752f7897694'
     option allow_global '1'
-    option fw_allow_input '1'
     option fw_allow_forward '1'
+EOF
+
+    # ---- 配置 zerotier 网桥接口 ----
+    touch "$ZT_CONFIG_DIR/network"
+    cat >> "$ZT_CONFIG_DIR/network" << 'EOF'
+
+config interface 'zter'
+    option type 'bridge'
+    option ifname 'ztly5t4jdd'
+    option proto 'none'
+    option auto '1'
+EOF
 clone_singbox() {
     local SINGBOX_DIR="$BUILD_DIR/feeds/packages/net/sing-box"
     local makefile_path="$SINGBOX_DIR/Makefile"
