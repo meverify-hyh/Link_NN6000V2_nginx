@@ -241,7 +241,6 @@ if [ -n "$ARGON_FOOTER" ]; then
     sed -i '/<footer/,/<\/footer>/d' "$ARGON_FOOTER"
     echo "✓ 已去除登录页底部版本信息"
 fi
-
 # ---- 修改系统名称为 Router ----
 cat > "$BUILD_DIR/files/etc/config/system" << 'EOF'
 config system
@@ -251,21 +250,16 @@ config system
     option ttylogin '0'
     option log_size '128'
     option urandom_seed '0'
-
 config timeserver 'ntp'
-    option enabled '1'
     option enable_server '0'
     list server 'ntp.tencent.com'
     list server 'ntp.aliyun.com'
     list server 'ntp.ntsc.ac.cn'
     list server 'cn.ntp.org.cn'
-
 config imm_init
     option lang '1'
     option system_chn '1'
     option apk_mirror 'https://mirrors.vsean.net/openwrt'
-EOF
-
 # ---- 配置 lldpd ----
 cat > "$BUILD_DIR/files/etc/config/lldpd" << 'EOF'
 config lldpd 'config'
@@ -274,7 +268,6 @@ config lldpd 'config'
     option enable_sonmp '0'
     option enable_edp '0'
     option lldp_location 'address country EU'
-    option enabled '1'
     option lldp_capability_advertisements '1'
     option lldp_mgmt_addr_advertisements '1'
     option lldp_tx_interval '30'
@@ -282,4 +275,20 @@ config lldpd 'config'
     option readonly_mode '0'
     option lldp_hostname 'Router'
     option lldp_description 'Router'
+
+# ---- 配置 vlan100 接口 ----
+cat >> "$BUILD_DIR/files/etc/config/network" << 'EOF'
+
+config bridge-vlan 'vlan100'
+    option device 'br-lan'
+    option vlan '100'
+    list ports 'lan1:u*'
+    list ports 'lan2:u*'
+    list ports 'lan3:u*'
+    list ports 'lan4:u*'
+
+config interface 'vlan100'
+    option device 'br-lan.100'
+    option proto 'static'
+    option ipaddr '192.168.1.1/24'
 EOF
