@@ -204,8 +204,7 @@ configure_vlan() {
     
     # 3. 删除旧的 VLAN 配置（可选，防止冲突）
     uci delete network.vlan1 2>/dev/null
-    uci delete network.vlan100 2>/dev/null
-    
+        
     # 4. 定义 VLAN 233（所有端口 untagged）
     uci set network.vlan233="bridge-vlan"
     uci set network.vlan233.device="br-lan"
@@ -219,7 +218,6 @@ configure_vlan() {
     uci set network.lan.device="br-lan.233"
     
     # 6. 删除可能残留的其他 VLAN 子接口配置
-    uci delete network.vlan100_iface 2>/dev/null
     
     # 7. 提交配置
     uci commit network
