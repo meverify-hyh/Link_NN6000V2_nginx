@@ -2,6 +2,7 @@
 
 GITHUB_BASE="https://github.com/"
 OPENWRT_PACKAGES_DIR="$BUILD_DIR/feeds/openwrt_packages"
+
 update_golang() {
     if [[ -d ./feeds/packages/lang/golang ]]; then
         \rm -rf ./feeds/packages/lang/golang
@@ -12,6 +13,7 @@ update_golang() {
         echo "✓ golang 软件包更新完成"
     fi
 }
+
 clone_packages() {
     local name="$1"
     local repo_url="$2"
@@ -24,16 +26,397 @@ clone_packages() {
     
     if [ -n "$pre_cmd" ]; then
         (cd "$BUILD_DIR" && eval "$pre_cmd") || return 1
+    fi
+    
     rm -rf "$target_dir" 2>/dev/null || true
+    
     if [ -n "$sparse_pattern" ]; then
         if ! git clone --filter=blob:none --no-checkout "$repo_url" "$target_dir"; then
             echo "错误：从 $repo_url 克隆 $name 仓库失败" >&2
+            exit 1
+        fi
         
         pushd "$target_dir" >/dev/null
         git sparse-checkout init --cone
         if ! git sparse-checkout set $sparse_pattern; then
             echo "错误：稀疏检出 $sparse_pattern 失败" >&2
             popd >/dev/null
+            return 1
+        fi
+        git checkout --quiet
+        popd >/dev/null
+        
+        if [ -n "$move_from" ] && [ -n "$move_to" ]; then
+            rm -rf "$move_to" 2>/dev/null || true
+            mv "$move_from" "$move_to" || return 1
+        fi
+    else
+        if ! git clone --depth=1 "$repo_url" "$target_dir"; then
+            echo "错误：从 $repo_url 克隆 $name 仓库失败" >&2
+            exit 1
+        fi
+    fi
+    
+    if [ -n "$post_cmd" ]; then
+        (cd "$BUILD_DIR" && eval "$post_cmd") || return 1
+    fi
+    
+    echo "✓ $name 克隆完成"
+}
+
+install_openwrt_packages() {
+    ./scripts/feeds install -p openwrt_packages -f \
+        xray-core sing-box trojan-plus naiveproxy shadowsocks-libev v2ray-plugin geoview \
+        microsocks tcping chinadns-ng dns2socks resolveip \
+        taskd luci-lib-xterm luci-lib-taskd \
+        luci-app-store quickstart luci-app-quickstart luci-app-istorex \
+        smartdns luci-app-smartdns luci-theme-argon luci-app-argon-config \
+        luci-lib-docker luci-app-lucky luci-app-adguardhome luci-app-easytier \
+        luci-app-oaf oaf open-app-filter \
+        luci-app-diskman luci-app-dockerman luci-app-quickfile luci-app-passwall \
+        luci-app-zerotier
+}
+
+clone_passwall() {
+    local PASSWALL_LUCI_DIR="$OPENWRT_PACKAGES_DIR/luci-app-passwall"
+    local PASSWALL_PACKAGES_DIR="$OPENWRT_PACKAGES_DIR/passwall-packages"
+    local TEMP_DIR="$OPENWRT_PACKAGES_DIR/openwrt-passwall-temp"
+    local PASSWALL_PKGS_TEMP="$OPENWRT_PACKAGES_DIR/passwall-packages-temp"
+    
+    clone_packages "luci-app-passwall" \
+        "${GITHUB_BASE}Openwrt-Passwall/openwrt-passwall.git" \
+        "$TEMP_DIR" \
+        "" \
+        "" \
+        "rm -rf \"$PASSWALL_LUCI_DIR\" 2>/dev/null || true; mv \"$TEMP_DIR/luci-app-passwall\" \"$PASSWALL_LUCI_DIR\"; rm -rf \"$TEMP_DIR\""
+    
+    rm -rf "$PASSWALL_PACKAGES_DIR" 2>/dev/null || true
+    
+    clone_packages "passwall-packages" \
+        "${GITHUB_BASE}Openwrt-Passwall/openwrt-passwall-packages.git" \
+        "$PASSWALL_PKGS_TEMP" \
+        "" \
+        "" \
+        "for pkg in \"$PASSWALL_PKGS_TEMP\"/*; do if [ -d \"\$pkg\" ]; then pkg_name=\$(basename \"\$pkg\"); mv \"\$pkg\" \"$OPENWRT_PACKAGES_DIR/\$pkg_name\"; fi; done; rm -rf \"$PASSWALL_PKGS_TEMP\""
+}
+
+clone_lucky() {
+    local LUCKY_REPO="${GITHUB_BASE}gdy666/luci-app-lucky.git"
+    local LUCKY_DIR="$OPENWRT_PACKAGES_DIR/lucky"
+    local LUCI_APP_LUCKY_DIR="$OPENWRT_PACKAGES_DIR/luci-app-lucky"
+    local LUCKY_TEMP="$OPENWRT_PACKAGES_DIR/lucky-temp"
+    local LUCKI_APP_TEMP="$OPENWRT_PACKAGES_DIR/luci-app-lucky-temp"
+
+    clone_packages "lucky" \
+        "$LUCKY_REPO" \
+        "$LUCKY_TEMP" \
+        "lucky" \
+        "" \
+        "" \
+        "$LUCKY_TEMP/lucky" \
+        "$LUCKY_DIR"
+
+    rm -rf "$LUCKY_TEMP"
+
+    clone_packages "luci-app-lucky" \
+        "$LUCKY_REPO" \
+        "$LUCKI_APP_TEMP" \
+        "luci-app-lucky" \
+        "" \
+        "" \
+        "$LUCKI_APP_TEMP/luci-app-lucky" \
+        "$LUCI_APP_LUCKY_DIR"
+
+    rm -rf "$LUCKI_APP_TEMP"
+    
+    local lucky_conf="$LUCKY_DIR/files/luckyuci"
+    if [ -f "$lucky_conf" ]; then
+        sed -i "s/option enabled '1'/option enabled '0'/g" "$lucky_conf"
+        sed -i "s/option logger '1'/option logger '0'/g" "$lucky_conf"
+    fi
+    
+    local version
+    version=$(find "$BASE_PATH/patches" -name "lucky_*.tar.gz" -printf "%f\n" | head -n 1 | sed -n 's/^lucky_\(.*\)_Linux.*$/\1/p')
+    if [ -z "$version" ]; then
+        echo "Warning: 未找到 lucky 补丁文件，跳过更新。" >&2
+        return 0
+    fi
+    
+    local makefile_path="$LUCKY_DIR/Makefile"
+    if [ ! -f "$makefile_path" ]; then
+        echo "Warning: lucky Makefile not found. Skipping." >&2
+        return 0
+    fi
+    
+    local patch_line="\\t[ -f \$(TOPDIR)/../nn6000v2/patches/lucky_${version}_Linux_\$(LUCKY_ARCH)_wanji.tar.gz ] && install -Dm644 \$(TOPDIR)/../nn6000v2/patches/lucky_${version}_Linux_\$(LUCKY_ARCH)_wanji.tar.gz \$(PKG_BUILD_DIR)/\$(PKG_NAME)_\$(PKG_VERSION)_Linux_\$(LUCKY_ARCH).tar.gz"
+    
+    if grep -q "Build/Prepare" "$makefile_path"; then
+        sed -i "/Build\\/Prepare/a\\$patch_line" "$makefile_path"
+        sed -i '/wget/d' "$makefile_path"
+    else
+        echo "Warning: lucky Makefile 中未找到 'Build/Prepare'。跳过。" >&2
+    fi
+}
+
+clone_adguardhome() {
+    clone_packages "luci-app-adguardhome" \
+        "${GITHUB_BASE}wzdddyy/luci-app-adguardhome.git" \
+        "$OPENWRT_PACKAGES_DIR/luci-app-adguardhome"
+}
+
+clone_easytier() {
+    local EASYTIER_DIR="$OPENWRT_PACKAGES_DIR/luci-app-easytier"
+    local TEMP_DIR="$OPENWRT_PACKAGES_DIR/easytier-temp"
+
+    (cd "$BUILD_DIR" && ./scripts/feeds install -f luci-lib-jsonc)
+
+    clone_packages "luci-app-easytier" \
+        "${GITHUB_BASE}EasyTier/luci-app-easytier.git" \
+        "$TEMP_DIR" \
+        "luci-app-easytier" \
+        "" \
+        "" \
+        "$TEMP_DIR/luci-app-easytier" \
+        "$EASYTIER_DIR"
+
+    rm -rf "$TEMP_DIR"
+}
+
+clone_oaf() {
+    local OAF_REPO="${GITHUB_BASE}destan19/OpenAppFilter.git"
+    local OAF_DIR="$OPENWRT_PACKAGES_DIR/OpenAppFilter"
+    local TEMP_DIR="$OPENWRT_PACKAGES_DIR/oaf-temp"
+
+    (cd "$BUILD_DIR" && ./scripts/feeds install -f kmod-ipt-conntrack kmod-ipt-nat)
+    
+    clone_packages "OpenAppFilter" \
+        "$OAF_REPO" \
+        "$TEMP_DIR" \
+        "oaf open-app-filter luci-app-oaf" \
+        "" \
+        "mkdir -p \"$OAF_DIR\" && rm -rf \"$OAF_DIR/oaf\" \"$OAF_DIR/open-app-filter\" \"$OAF_DIR/luci-app-oaf\" && mv \"$TEMP_DIR/oaf\" \"$TEMP_DIR/open-app-filter\" \"$TEMP_DIR/luci-app-oaf\" \"$OAF_DIR/\""
+
+    rm -rf "$TEMP_DIR"
+
+    local oaf_makefile="$OAF_DIR/oaf/Makefile"
+    if [ -f "$oaf_makefile" ] ; then
+        sed -i 's/DEPENDS:=.*oaf/DEPENDS:=+kmod-ipt-conntrack +kmod-ipt-nat/g' "$oaf_makefile"
+    fi
+
+    local appfilter_config="$OAF_DIR/open-app-filter/files/etc/config/appfilter"
+    if [ -f "$appfilter_config" ] ; then
+        sed -i "s/option enabled '1'/option enabled '0'/g" "$appfilter_config"
+    fi
+
+    local disable_script="$OAF_DIR/luci-app-oaf/root/etc/uci-defaults/99_disable_oaf"
+    mkdir -p "$(dirname "$disable_script")"
+    cat > "$disable_script" << 'EOF'
+#!/bin/sh
+[ "$(uci get appfilter.global.enable 2>/dev/null)" = "0" ] && {
+    /etc/init.d/appfilter disable
+    /etc/init.d/appfilter stop
+}
+EOF
+    chmod +x "$disable_script"
+}
+
+clone_diskman() {
+    local path="$OPENWRT_PACKAGES_DIR/luci-app-diskman"
+    local repo_url="${GITHUB_BASE}lisaac/luci-app-diskman.git"
+    local temp_dir="$OPENWRT_PACKAGES_DIR/diskman"
+    
+    clone_packages "luci-app-diskman" \
+        "$repo_url" \
+        "$temp_dir" \
+        "applications/luci-app-diskman" \
+        "" \
+        "" \
+        "$temp_dir/applications/luci-app-diskman" \
+        "$path"
+    
+    sed -i 's/fs-ntfs /fs-ntfs3 /g' "$path/Makefile"
+    sed -i '/ntfs-3g-utils /d' "$path/Makefile"
+}
+
+_sync_luci_lib_docker() {
+    local repo_url="${GITHUB_BASE}lisaac/luci-lib-docker.git"
+    local luci_lib_docker_dir="$OPENWRT_PACKAGES_DIR/luci-lib-docker"
+    
+    mkdir -p "$OPENWRT_PACKAGES_DIR" || return
+    
+    rm -rf "$luci_lib_docker_dir" 2>/dev/null || true
+    if ! git clone --depth=1 "$repo_url" "$luci_lib_docker_dir"; then
+        echo "错误：从 $repo_url 克隆 luci-lib-docker 仓库失败" >&2
+        exit 1
+    fi
+    
+    echo "✓ luci-lib-docker 克隆完成"
+}
+
+clone_dockerman() {
+    local path="$OPENWRT_PACKAGES_DIR/luci-app-dockerman"
+    local repo_url="${GITHUB_BASE}wzdddyy/luci-app-dockerman.git"
+    local temp_dir="$OPENWRT_PACKAGES_DIR/dockerman"
+    
+    _sync_luci_lib_docker || return
+    
+    clone_packages "luci-app-dockerman" \
+        "$repo_url" \
+        "$temp_dir" \
+        "applications/luci-app-dockerman" \
+        "" \
+        "" \
+        "$temp_dir/applications/luci-app-dockerman" \
+        "$path"
+}
+
+clone_quickfile() {
+    local QUICKFILE_DIR="$OPENWRT_PACKAGES_DIR/luci-app-quickfile"
+    local TEMP_DIR="$OPENWRT_PACKAGES_DIR/quickfile-temp"
+
+    clone_packages "luci-app-quickfile" \
+        "${GITHUB_BASE}sbwml/luci-app-quickfile.git" \
+        "$TEMP_DIR" \
+        "luci-app-quickfile quickfile" \
+        "" \
+        "mkdir -p \"$QUICKFILE_DIR\" && rm -rf \"$QUICKFILE_DIR/luci-app-quickfile\" \"$QUICKFILE_DIR/quickfile\" && mv \"$TEMP_DIR/luci-app-quickfile\" \"$TEMP_DIR/quickfile\" \"$QUICKFILE_DIR/\""
+
+    rm -rf "$TEMP_DIR"
+}
+
+remove_attendedsysupgrade() {
+    find "$BUILD_DIR/feeds/luci/collections" -name "Makefile" | while read -r makefile; do
+        if grep -q "luci-app-attendedsysupgrade" "$makefile"; then
+            sed -i "/luci-app-attendedsysupgrade/d" "$makefile"
+            echo "Removed luci-app-attendedsysupgrade from $makefile"
+        fi
+    done
+}
+# ---- 创建 zerotier 预配置文件 ----
+clone_packages "luci-app-zerotier" \
+    "${GITHUB_BASE}wzdddyy/luci-app-zerotier.git" \
+    "$OPENWRT_PACKAGES_DIR/luci-app-zerotier"
+
+ZT_CONFIG_DIR="$BUILD_DIR/files/etc/config"
+mkdir -p "$ZT_CONFIG_DIR"
+cat > "$ZT_CONFIG_DIR/zerotier" << 'EOF'
+config zerotier 'global'
+    option fw_allow_input '1'
+    option enabled '1'
+    option secret '140022c9b8:0:32a0a683e84428da54590e2c515e6a23941db363190a070b708f216cc336f730693165d7b0d4fbe123993d0decf132bda42660a866b32e5d87ba3bf017f20224:96a9c680a773ba7215ca3444ab827461914f22025ae7dfcdfbbd4a4d5af3d2a28d0c9639f943d44f4bad04042d6a36c5f3324af50aec8a268f49ac9c1319194d'
+config network 'my'
+    option id '0cccb752f7897694'
+    option allow_global '1'
+    option fw_allow_input '1'
+    option fw_allow_forward '1'
+EOF
+
+# ---- 配置 zerotier 网桥接口 ----
+cat >> "$ZT_CONFIG_DIR/network" << 'EOF'
+
+config interface 'zter'
+    option type 'bridge'
+    option ifname 'ztly5t4jdd'
+    option proto 'none'
+    option auto '1'
+EOF
+
+# ---- 锁定 sing-box 版本 ----
+SINGBOX_DIR="$BUILD_DIR/feeds/packages/net/sing-box"
+SINGBOX_MAKEFILE="$SINGBOX_DIR/Makefile"
+if [ ! -f "$SINGBOX_MAKEFILE" ]; then
+    echo "Warning: sing-box Makefile not found. Skipping." >&2
+else
+    sed -i "s/^PKG_VERSION:=.*/PKG_VERSION:=1.12.19/" "$SINGBOX_MAKEFILE"
+    sed -i "s/^PKG_HASH:=.*/PKG_HASH:=e122253d6712c13997b3aba9692dca5fde3e4d0d2aa606fd20913b772fcd147c/" "$SINGBOX_MAKEFILE"
+    echo "✓ sing-box 已锁定到 1.12.19"
+fi
+
+preset_ssh_key() {
+    local ssh_pubkey="${SSH_PUBKEY:-}"   # 从环境变量读取公钥内容
+    if [ -z "$ssh_pubkey" ]; then
+        echo "⚠️ SSH_PUBKEY 未设置，跳过 SSH 公钥预置" >&2
+        return 0
+    fi
+
+    local key_dir="$BUILD_DIR/files/etc/dropbear"
+    mkdir -p "$key_dir"
+    echo "$ssh_pubkey" > "$key_dir/authorized_keys"
+    chmod 600 "$key_dir/authorized_keys"
+    echo "✓ SSH 公钥已预置到 $key_dir/authorized_keys"
+}
+
+# ---- 添加 openwrt 登录用户 ----
+cat >> "$BUILD_DIR/files/etc/config/rpcd" << 'EOF'
+
+config login
+    option username 'openwrt'
+    option password ''
+    list read '*'
+    list write '*'
+EOF
+
+# ---- 去除登录页底部版本信息 ----
+ARGON_FOOTER=$(find "$BUILD_DIR/feeds" -name "footer_login.ut" -path "*argon*" 2>/dev/null | head -1)
+if [ -n "$ARGON_FOOTER" ]; then
+    sed -i '/<footer/,/<\/footer>/d' "$ARGON_FOOTER"
+    echo "✓ 已去除登录页底部版本信息"
+fi
+
+# ---- 修改系统名称为 Router ----
+cat > "$BUILD_DIR/files/etc/config/system" << 'EOF'
+config system
+    option hostname 'Router'
+    option timezone 'CST-8'
+    option zonename 'Asia/Shanghai'
+    option ttylogin '0'
+    option log_size '128'
+    option urandom_seed '0'
+
+config timeserver 'ntp'
+    option enabled '1'
+    option enable_server '0'
+    list server 'ntp.tencent.com'
+    list server 'ntp.aliyun.com'
+    list server 'ntp.ntsc.ac.cn'
+    list server 'cn.ntp.org.cn'
+
+config imm_init
+    option lang '1'
+    option system_chn '1'
+    option apk_mirror 'https://mirrors.vsean.net/openwrt'
+EOF
+
+# ---- 配置 lldpd ----
+cat > "$BUILD_DIR/files/etc/config/lldpd" << 'EOF'
+config lldpd 'config'
+    option enable_cdp '0'
+    option enable_fdp '0'
+    option enable_sonmp '0'
+    option enable_edp '0'
+    option lldp_location 'address country EU'
+    option enabled '1'
+    option lldp_capability_advertisements '1'
+    option lldp_mgmt_addr_advertisements '1'
+    option lldp_tx_interval '30'
+    option lldp_tx_hold '4'
+    option readonly_mode '0'
+    option lldp_hostname 'Router'
+    option lldp_description 'Router'
+EOF
+
+# ---- 配置 vlan100 接口 ----
+cat >> "$BUILD_DIR/files/etc/config/network" << 'EOF'
+
+config bridge-vlan 'vlan100'
+    option device 'br-lan'
+    option vlan '100'
+
+config interface 'vlan100'
+    option device 'br-lan.100'
+    option proto 'static'
+    option ipaddr '192.168.1.1/24'
+EOF
 
 # ---- 配置 vlan100 DHCP ----
 cat >> "$BUILD_DIR/files/etc/config/dhcp" << 'EOF'
