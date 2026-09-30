@@ -352,6 +352,8 @@ preset_ssh_key() {
     echo "✓ SSH 公钥已预置到 $key_dir/authorized_keys"
 }
 
+mkdir -p "$BUILD_DIR/files/etc/config"
+
 # ---- 添加 openwrt 登录用户 ----
 cat >> "$BUILD_DIR/files/etc/config/rpcd" << 'EOF'
 
