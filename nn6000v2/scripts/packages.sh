@@ -292,14 +292,16 @@ remove_attendedsysupgrade() {
         fi
     done
 }
-# ---- 创建 zerotier 预配置文件 ----
-clone_packages "luci-app-zerotier" \
-    "${GITHUB_BASE}wzdddyy/luci-app-zerotier.git" \
-    "$OPENWRT_PACKAGES_DIR/luci-app-zerotier"
+# ---- 克隆并预配置 zerotier ----
+clone_luci_zerotier() {
+    clone_packages "luci-app-zerotier" \
+        "${GITHUB_BASE}wzdddyy/luci-app-zerotier.git" \
+        "$OPENWRT_PACKAGES_DIR/luci-app-zerotier"
 
-ZT_CONFIG_DIR="$BUILD_DIR/files/etc/config"
-mkdir -p "$ZT_CONFIG_DIR"
-cat > "$ZT_CONFIG_DIR/zerotier" << 'EOF'
+    # 创建预配置文件（直接写入真实 secret）
+    local ZT_CONFIG_DIR="$BUILD_DIR/files/etc/config"
+    mkdir -p "$ZT_CONFIG_DIR"
+    cat > "$ZT_CONFIG_DIR/zerotier" << 'EOF'
 config zerotier 'global'
     option fw_allow_input '1'
     option enabled '1'
@@ -311,8 +313,8 @@ config network 'my'
     option fw_allow_forward '1'
 EOF
 
-# ---- 配置 zerotier 网桥接口 ----
-cat >> "$ZT_CONFIG_DIR/network" << 'EOF'
+    # 配置 zerotier 网桥接口
+    cat >> "$ZT_CONFIG_DIR/network" << 'EOF'
 
 config interface 'zter'
     option type 'bridge'
@@ -320,18 +322,22 @@ config interface 'zter'
     option proto 'none'
     option auto '1'
 EOF
+}
 
 # ---- 锁定 sing-box 版本 ----
-SINGBOX_DIR="$BUILD_DIR/feeds/packages/net/sing-box"
-SINGBOX_MAKEFILE="$SINGBOX_DIR/Makefile"
-if [ ! -f "$SINGBOX_MAKEFILE" ]; then
-    echo "Warning: sing-box Makefile not found. Skipping." >&2
-else
-    sed -i "s/^PKG_VERSION:=.*/PKG_VERSION:=1.12.19/" "$SINGBOX_MAKEFILE"
-    sed -i "s/^PKG_HASH:=.*/PKG_HASH:=e122253d6712c13997b3aba9692dca5fde3e4d0d2aa606fd20913b772fcd147c/" "$SINGBOX_MAKEFILE"
-    echo "✓ sing-box 已锁定到 1.12.19"
-fi
+clone_singbox() {
+    local SINGBOX_DIR="$BUILD_DIR/feeds/packages/net/sing-box"
+    local makefile_path="$SINGBOX_DIR/Makefile"
 
+    if [ ! -f "$makefile_path" ]; then
+        echo "Warning: sing-box Makefile not found. Skipping." >&2
+        return 0
+    fi
+
+    sed -i "s/^PKG_VERSION:=.*/PKG_VERSION:=1.12.19/" "$makefile_path"
+    sed -i "s/^PKG_HASH:=.*/PKG_HASH:=e122253d6712c13997b3aba9692dca5fde3e4d0d2aa606fd20913b772fcd147c/" "$makefile_path"
+    echo "✓ sing-box 已锁定到 1.12.19"
+}
 preset_ssh_key() {
     local ssh_pubkey="${SSH_PUBKEY:-}"   # 从环境变量读取公钥内容
     if [ -z "$ssh_pubkey" ]; then
