@@ -413,24 +413,59 @@ config lldpd 'config'
     option lldp_description 'Router'
 EOF
 
-# ---- 配置 vlan100 接口 ----
-cat >> "$BUILD_DIR/files/etc/config/network" << 'EOF'
+# ---- 预置完整 network 配置 ----
+cat > "$BUILD_DIR/files/etc/config/network" << 'EOF'
+config interface 'loopback'
+    option device 'lo'
+    option proto 'static'
+    option ipaddr '127.0.0.1'
+    option netmask '255.0.0.0'
+
+config globals 'globals'
+    option ula_prefix 'fd00:abba:beef::/48'
+
+config device
+    option name 'br-lan'
+    option type 'bridge'
+    option vlan_filtering '1'
+    list ports 'lan1'
+    list ports 'lan2'
+    list ports 'lan3'
+    list ports 'lan4'
+
+config interface 'lan'
+    option device 'br-lan.233'
+    option proto 'static'
+    option ipaddr '192.168.2.254'
+    option netmask '255.255.255.0'
+    option ip6assign '60'
+
+config interface 'wan'
+    option device 'wan'
+    option proto 'dhcp'
+
+config bridge-vlan 'vlan233'
+    option device 'br-lan'
+    option vlan '233'
+    list ports 'lan1:u*'
+    list ports 'lan2:u*'
+    list ports 'lan3:u*'
+    list ports 'lan4:u*'
 
 config bridge-vlan 'vlan100'
     option device 'br-lan'
     option vlan '100'
 
-config interface 'vlan100'
+config interface 'vlan100_iface'
     option device 'br-lan.100'
     option proto 'static'
     option ipaddr '192.168.1.1/24'
 EOF
-
 # ---- 配置 vlan100 DHCP ----
 cat >> "$BUILD_DIR/files/etc/config/dhcp" << 'EOF'
 
 config dhcp 'vlan100'
-    option interface 'vlan100'
+    option interface 'vlan100_iface'
     option start '100'
     option limit '150'
     option leasetime '12h'
