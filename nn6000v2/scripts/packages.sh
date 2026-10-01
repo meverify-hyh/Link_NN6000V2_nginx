@@ -354,14 +354,7 @@ preset_ssh_key() {
 
 mkdir -p "$BUILD_DIR/files/etc/config"
 
-# ---- 设置 root Web 登录密码（password，写入编译镜像的 shadow）----
-ROOT_HASH=$(openssl passwd -1 'password' 2>/dev/null)
-if [ -n "$ROOT_HASH" ] && [ -f "$BUILD_DIR/package/base-files/files/etc/shadow" ]; then
-    sed -i "s#^root:[^:]*:#root:${ROOT_HASH}:#" "$BUILD_DIR/package/base-files/files/etc/shadow"
-    echo "✓ root 密码已设为 123321（MD5 哈希写入 shadow）"
-else
-    echo "✗ 无法生成 root 密码哈希（缺 openssl 或 shadow 文件不存在）"
-fi
+# ---- root 保持空密码（ImmortalWRT 默认，首次登录强制设置密码）----
 
 # ---- 去除登录页底部版本信息 ----
 ARGON_FOOTER=$(find "$BUILD_DIR/feeds" -name "footer_login.ut" -path "*argon*" 2>/dev/null | head -1)
