@@ -354,8 +354,8 @@ preset_ssh_key() {
 
 mkdir -p "$BUILD_DIR/files/etc/config"
 
-# ---- 设置 root Web 登录密码（123321，写入编译镜像的 shadow）----
-ROOT_HASH=$(openssl passwd -1 '123321' 2>/dev/null)
+# ---- 设置 root Web 登录密码（password，写入编译镜像的 shadow）----
+ROOT_HASH=$(openssl passwd -1 'password' 2>/dev/null)
 if [ -n "$ROOT_HASH" ] && [ -f "$BUILD_DIR/package/base-files/files/etc/shadow" ]; then
     sed -i "s#^root:[^:]*:#root:${ROOT_HASH}:#" "$BUILD_DIR/package/base-files/files/etc/shadow"
     echo "✓ root 密码已设为 123321（MD5 哈希写入 shadow）"
